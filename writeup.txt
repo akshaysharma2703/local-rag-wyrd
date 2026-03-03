@@ -1,0 +1,179 @@
+Local RAG on Wyrd Wiki — Design Write-up
+
+Overview
+I built a fully local Retrieval-Augmented Generation (RAG) system that answers questions about the Wyrd Media Labs company wiki. The primary goal was to eliminate per-query cost while maintaining acceptable answer quality. The pipeline ingests the public Notion wiki, converts it into structured text files, embeds the content locally, stores vectors in a lightweight database, and uses a local LLM to generate grounded answers.
+
+System Architecture
+The pipeline follows this flow:
+
+Notion Wiki → automated scraper → cleaned text files → chunking → embeddings → ChromaDB → similarity retrieval → local LLM → final answer
+
+All components run locally to satisfy the zero-cost requirement.
+
+Key Design Decisions
+
+1. Document Ingestion
+   The provided wiki was public and view-only, so direct export was unavailable. I implemented a lightweight crawler using requests, BeautifulSoup, and html2text to programmatically extract page content and store it as structured text files. This ensures reproducibility and avoids manual copying.
+
+Why this approach:
+
+* Works with public Notion pages
+* Fully automated corpus creation
+* Keeps pipeline reproducible
+* Minimal external dependencies
+
+Known limitation: Notion lazy-loaded elements and complex blocks (tables, toggles) may not be perfectly captured.
+
+2. Chunking Strategy
+   I used paragraph-aware sentence chunking with:
+
+* chunk_size: 500 tokens
+* chunk_overlap: 80 tokens
+
+Rationale:
+The wiki is mostly structured prose. Medium-sized chunks preserve semantic coherence while maintaining retrieval precision. Overlap helps prevent boundary information loss.
+
+Trade-offs considered:
+
+* Very small chunks hurt context quality
+* Very large chunks reduce retrieval accuracy
+* No overlap risks missing cross-paragraph context
+
+Where it may break:
+
+* Very long tables
+* Highly repetitive sections
+* Deeply nested Notion content
+
+3. Embedding Model
+   I selected nomic-embed-text via Ollama.
+
+Reasons:
+
+* Fully local (zero API cost)
+* Good semantic performance
+* Lightweight and CPU-friendly
+* No rate limits
+
+Alternatives like OpenAI embeddings were avoided to maintain the zero-cost constraint.
+
+4. Vector Database
+   I used ChromaDB with local persistence.
+
+Reasons:
+
+* Pure Python, zero setup
+* Fast for small–medium corpora
+* Beginner-friendly
+* Sufficient for this assignment scale
+
+When I would upgrade to Qdrant:
+
+* Production workloads
+* Larger vector counts
+* Need for hybrid search
+* Distributed deployment
+
+5. Retrieval Strategy
+   Current method: top-k cosine similarity search (k=4).
+
+Why:
+
+* Simple and deterministic baseline
+* Fast local performance
+* Easy to debug
+
+Limitations:
+
+* No reranking
+* No keyword hybrid search
+* Sensitive to embedding noise
+
+Planned improvements:
+
+* Cross-encoder reranker
+* Hybrid BM25 + vector search
+* Query rewriting
+* Dynamic k selection
+
+6. Generation Model
+   Due to local RAM constraints, I used phi3:mini via Ollama instead of larger models.
+
+Rationale:
+
+* Runs reliably on limited hardware
+* Fast inference
+* Sufficient for grounded RAG answers
+* Maintains zero per-query cost
+
+Important insight: In RAG systems, retrieval quality typically impacts answer accuracy more than raw LLM size.
+
+Prompt Guardrails
+The generation prompt instructs the model to:
+
+* Answer only from retrieved context
+* Avoid fabricating information
+* Admit when information is missing
+
+This reduces hallucinations in low-context scenarios.
+
+Where the System Breaks
+
+Retrieval risks:
+
+* Semantically similar but incorrect chunks
+* Acronym-heavy queries
+* Table-heavy content
+* Very short queries
+
+Generation risks:
+
+* Hallucination when context is weak
+* Occasional verbosity
+* Imperfect citation behavior
+
+Data risks:
+
+* Imperfect Notion HTML extraction
+* Duplicate content
+* Loss of heading hierarchy
+
+Scaling limits:
+
+* Chroma not ideal for very large corpora
+* No incremental indexing yet
+* No evaluation harness
+
+What I Would Improve Next
+
+Highest-impact upgrades:
+
+Retrieval quality
+
+* Add hybrid keyword + vector search
+* Add cross-encoder reranking
+* Implement MMR diversification
+* Add metadata filtering
+
+Chunking intelligence
+
+* Heading-aware chunking
+* Adaptive chunk sizing
+* Table-aware parsing
+
+Evaluation
+
+* Build a small RAG benchmark set
+* Measure recall@k
+* Track hallucination rate
+* Add latency metrics
+
+Production readiness
+
+* Migrate to Qdrant
+* Add caching layer
+* Add ingestion pipeline
+* Add monitoring/observability
+
+Conclusion
+This system satisfies the requirement of a fully local, zero-per-query RAG pipeline. The design prioritizes reproducibility, simplicity, and hardware efficiency while leaving a clear path toward production-grade improvements. The current implementation is intentionally minimal but architected for incremental upgrades in retrieval quality, robustness, and scale.
