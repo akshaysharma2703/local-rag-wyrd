@@ -2,12 +2,16 @@
 
 A fully local Retrieval-Augmented Generation (RAG) system that answers questions about the Wyrd company wiki without any per-query cost.
 
+--- 
+
 ## 🚀 Stack
 
 - Ollama (local LLM + embeddings)
 - LlamaIndex
 - ChromaDB
 - Python
+
+---
 
 ## ✅ Features
 
@@ -17,33 +21,55 @@ A fully local Retrieval-Augmented Generation (RAG) system that answers questions
 - Simple CLI interface
 - Zero API cost
 
+---
+
 ## 🧠 Models Used
 
 - Embeddings: `nomic-embed-text`
 - LLM: `gemma:2b`
 
+---
+
 ## 📂 Project Structure
+```
 LocalRAG-Wyrd/
+│
 ├── rag.py
 ├── writeup.txt
 └── data/
 └── wyrd_wiki.txt
+```
 
+---
 
 ## ▶️ How to Run
 
 ### 1. Install dependencies
 
-```bash
 pip install llama-index chromadb ollama
 
-2. Pull Ollama models
+### 2. Pull Ollama models
+
 
 ollama pull nomic-embed-text
 ollama pull gemma:2b
 
-3. Run
+### 3. Run
 
 python rag.py
 
-Author: Akshay Sharma
+Then ask questions in the terminal.
+
+---
+
+## ⚠️ Notes
+
+Designed for local execution
+
+Performance depends on available RAM
+
+No external API required
+
+---
+
+### Author: Akshay Sharma
